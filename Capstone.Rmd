@@ -131,8 +131,8 @@ Unlike logistic models, this quantity varies with X. To obtain a single summary 
 
 The dashed curves represent the distribution of X for two subgroups:
 
-- Sex = 0 ~ N(-1.5, 1)
-- Sex = 1 ~ N(1.5, 1)
+- Sex = Male ~ N(-1.5, 1)
+- Sex = Female ~ N(1.5, 1)
 
 Points indicate the true population-averaged values for each subgroup, computed using their respective exposure distributions.
 
@@ -276,7 +276,11 @@ These findings are relevant for improving the accuracy of causal interpretation 
   z-index: 9999;
 ">
   <a href="https://github.com/cannun2/capstone_dashboard" target="_blank">
-    https://github.com/cannun2/capstone_dashboard
+    GitHub Repository
+  </a>
+  &nbsp;|&nbsp;
+  <a href="https://cannun2.github.io/capstone_dashboard/" target="_blank">
+    Live Dashboard
   </a>
 </div>
 ---
@@ -316,9 +320,9 @@ Simulation setup:
 
 - Exposure distributions differ by sex:
 
-  - Sex = 0 ~ N(-1.5, 1)
+  - Sex = Male ~ N(-1.5, 1)
 
-  - Sex = 1 ~ N(1.5, 1)
+  - Sex = Female ~ N(1.5, 1)
 
 KDE approach:
 
@@ -334,7 +338,7 @@ GEE approach:
 
 - Requires stratification to obtain subgroup estimates
 
-Histograms show the distribution of estimated PA ln(OR) across simulations for each method and subgroup.
+Histograms show the distribution of estimated PA ln(OR) for each method and subgroup.
 
 Column {data-width=65}
 -------------------------------------
@@ -511,11 +515,11 @@ tagList(
 
 - The KDE-based estimator produces more precise estimates (lower variability) than GEE.
 - KDE results:
-  - Sex 0 mean ≈ 0.801, SD ≈ 0.029
-  - Sex 1 mean ≈ 0.670, SD ≈ 0.021
+  - Sex Male mean ≈ 0.801, SD ≈ 0.029
+  - Sex Female mean ≈ 0.670, SD ≈ 0.021
 - GEE results:
-  - Sex 0 mean ≈ 0.791, SD ≈ 0.047
-  - Sex 1 mean ≈ 0.668, SD ≈ 0.031
+  - Sex Male mean ≈ 0.791, SD ≈ 0.047
+  - Sex Female mean ≈ 0.668, SD ≈ 0.031
 
 - KDE achieves tighter distributions and more stable subgroup estimates.
 - GEE requires stratification, which reduces effective sample size and increases variability.
@@ -542,7 +546,11 @@ These findings are relevant for improving the accuracy of causal interpretation 
   z-index: 9999;
 ">
   <a href="https://github.com/cannun2/capstone_dashboard" target="_blank">
-    https://github.com/cannun2/capstone_dashboard
+    GitHub Repository
+  </a>
+  &nbsp;|&nbsp;
+  <a href="https://cannun2.github.io/capstone_dashboard/" target="_blank">
+    Live Dashboard
   </a>
 </div>
 ---
@@ -570,6 +578,10 @@ This study uses fully simulated data generated via a clustered probit random int
   z-index: 9999;
 ">
   <a href="https://github.com/cannun2/capstone_dashboard" target="_blank">
-    https://github.com/cannun2/capstone_dashboard
+    GitHub Repository
+  </a>
+  &nbsp;|&nbsp;
+  <a href="https://cannun2.github.io/capstone_dashboard/" target="_blank">
+    Live Dashboard
   </a>
 </div>
