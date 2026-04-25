@@ -238,7 +238,7 @@ fig <- fig %>%
 fig <- fig %>%
   layout(
     autosize = TRUE,
-    title = "Population Averaged log(Odds Ratio) Across X with Sex-Specific Distributions",
+    title = "PA log(Odds Ratio) Across X with Sex-Specific Distributions",
     font = list(size = 16),
     xaxis = list(title = "X (standardized value)", titlefont = list(size = 18)),
     yaxis = list(title = "Population Averaged log(OR)", titlefont = list(size = 18)),
@@ -256,16 +256,6 @@ htmltools::div(style = "height:100%;", fig)
 
 It can be seen that the PA ln(OR) changes based on the Sex subgroups despite not being included in the original probit model which can cause issues with samples that do not contain all subgroups due to limitations. These subgroups can be calculated using a correctly specified Kernel Density Estimation (KDE) probit model or a misspecified stratified GEE logistic model.
 
----
-
-# PA Ln(OR) Data Description
-
-Column
--------------------------------------
-
-<div style="overflow-y: auto; height: 100%; padding: 10px;">
-This dataset is generated from a simulation study (no external data source; fully synthetic). The sample includes 200 clusters with 4 repeated observations per subject, representing a study population of simulated individuals with binary outcomes and a continuous exposure variable. Data were generated using a subject-specific probit model with random intercepts to mimic correlated binary responses, with exposure distributions varying by subgroup (sex). The simulation framework approximates population-averaged effects across the exposure distribution and does not correspond to a real-world time period.
-</div>
 ---
 
 # Probit KDE vs Logit GEE Sex Groups
@@ -511,8 +501,8 @@ tagList(
 
 ---
 
-# Probit vs. Logit GEE Sex Groups Data Description
+# Data Description
 
 <div style="overflow-y: auto; height: 100%; padding: 10px;">
-The data were produced via Monte Carlo simulation with 500 replicated datasets under controlled parameter settings. Each dataset includes clustered observations with subgroup-specific exposure distributions and random intercepts to reflect within-subject correlation. Estimation methods, including GEE, mixed models, and kernel density–weighted approaches, were applied and evaluated using bootstrap resampling at the cluster level. The study population is simulated rather than observed, and all data were generated programmatically over three 8 hour segments.
+This study uses fully simulated data generated via a clustered probit random intercept model with 200 clusters and 4 observations per cluster. Exposure distributions differ by sex group and follow normal distributions with different means. A total of 500 Monte Carlo datasets were generated to evaluate estimator performance. The study population is entirely synthetic and does not correspond to a real world dataset. All data were generated programmatically in SAS.
 </div>
