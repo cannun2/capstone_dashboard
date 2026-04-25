@@ -14,7 +14,7 @@ This project demonstrates how population-averaged effect estimates can vary depe
 These findings are relevant for improving the accuracy of causal interpretation in clustered or heterogeneous data settings.
 
 ## Link to Dashboard
-https://github.com/cannun2/capstone_dashboard
+https://cannun2.github.io/capstone_dashboard/
 
 ## How to Run
 Download the file and open the Capstone.Rmd file. Hit knit to create the dashboard.
