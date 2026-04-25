@@ -1,0 +1,518 @@
+---
+title: "Capstone Dashboard"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(plotly)
+library(haven)
+library(htmltools)
+library(htmlwidgets)
+library(here)
+
+theme_set(theme_minimal(base_size = 14))
+```
+
+```{r data_setup}
+bet0  <- -1
+bet1  <- 0.5
+sigsqa <- 0.5
+
+pctile <- seq(0.001, 0.999, by = 0.001)
+X <- qnorm(pctile)
+
+data <- tibble(X = X) %>%
+  mutate(
+    term1 = pnorm((bet0 + bet1*(X+1)) / sqrt(1+sigsqa)),
+    term2 = 1 - pnorm((bet0 + bet1*X) / sqrt(1+sigsqa)),
+    term3 = pnorm((bet0 + bet1*X) / sqrt(1+sigsqa)),
+    term4 = 1 - pnorm((bet0 + bet1*(X+1)) / sqrt(1+sigsqa)),
+    PAlnORx = log((term1*term2)/(term3*term4)),
+    pdf_sex0 = dnorm(X, -1.5, 1),
+    pdf_sex1 = dnorm(X,  1.5, 1)
+  )
+
+sex_data <- data
+
+truePA <- tibble(
+  sex = c(0,1),
+  X = c(-1.5, 1.5),
+  PA = c(0.7913884, 0.6601151)
+)
+sex_data <- sex_data %>%
+  mutate(
+    text_pa = paste0(
+      "X: ", sprintf("%.3f", X),
+      "<br>PA ln(OR): ", sprintf("%.3f", PAlnORx)
+    ),
+    text_pdf0 = paste0(
+      "Sex: Male",
+      "<br>X: ", sprintf("%.3f", X),
+      "<br>Density: ", sprintf("%.3f", pdf_sex0)
+    ),
+    text_pdf1 = paste0(
+      "Sex: Female",
+      "<br>X: ", sprintf("%.3f", X),
+      "<br>Density: ", sprintf("%.3f", pdf_sex1)
+    )
+  )
+
+truePA <- truePA %>%
+  mutate(
+    sex_label = ifelse(sex == 0, "Male", "Female"),
+    text_point = paste0(
+      "Sex: ", sex_label,
+      "<br>X: ", sprintf("%.3f", X),
+      "<br>PA ln(OR): ", sprintf("%.3f", PA)
+    )
+  )
+```
+
+```{r sas_data}
+here::i_am("Capstone.Rmd")
+
+Sex0resultsall  <- read_sas(here("Data","sex0all.sas7bdat"))
+Sex1resultsall  <- read_sas(here("Data","sex1all.sas7bdat"))
+sex0geelogitall <- read_sas(here("Data","sex0geelogit.sas7bdat"))
+sex1geelogitall <- read_sas(here("Data","sex1geelogit.sas7bdat"))
+
+kde_sex0 <- Sex0resultsall %>% transmute(method="KDE", estimate=COL2, sex=0)
+kde_sex1 <- Sex1resultsall %>% transmute(method="KDE", estimate=COL2, sex=1)
+
+gee_sex0 <- sex0geelogitall %>% transmute(method="GEE", estimate=geelogitlnOR, sex=0)
+gee_sex1 <- sex1geelogitall %>% transmute(method="GEE", estimate=geelogitlnOR, sex=1)
+
+all_estimates <- bind_rows(kde_sex0,kde_sex1,gee_sex0,gee_sex1)
+```
+
+# PA Ln(OR) with Subgroups
+```{r, fill=TRUE, echo=FALSE}
+htmltools::div(
+  style = "
+    font-size: 22px;
+    font-weight: 600;
+    text-align: center;
+    padding: 12px 18px;
+    margin-bottom: 15px;
+    background: #f5f5f5;
+    border-radius: 8px;
+  ",
+  "How does a Population Average Log Odds Ratio change with regard to a value X under a Probit Random Effects Model?"
+)
+```
+Column {data-width=35}
+-------------------------------------
+
+#### Model Explanation
+
+This visualization shows how the population-averaged log odds ratio (PA ln(OR)) changes as a function of X under a correctly specified probit random effects model.
+
+The subject-specific model is:
+
+Probit(P(Y = 1)) = α + a_i + βX
+
+where a_i ~ N(0, σ²). 
+
+Under this model, population-averaged parameters are given by:
+
+β_PA = β / √(1 + σ²)
+
+For each value of X, the PA ln(OR)(x) is computed using:
+
+- Probabilities at X and X+1 from the marginal probit model
+- A transformation into a log odds ratio
+
+Unlike logistic models, this quantity varies with X. To obtain a single summary measure, we evaluate ln(OR)(x) across a dense grid of X values and interpret the curve directly.
+
+The dashed curves represent the distribution of X for two subgroups:
+
+- Sex = 0 ~ N(-1.5, 1)
+- Sex = 1 ~ N(1.5, 1)
+
+Points indicate the true population-averaged values for each subgroup, computed using their respective exposure distributions.
+
+Column {data-width=65}
+-------------------------------------
+#### Predictive Accuracy Visualization
+
+```{r, fill=TRUE}
+fig <- plot_ly()
+
+# PA ln(OR)
+fig <- fig %>%
+  add_lines(
+    data = sex_data,
+    x = ~X, y = ~PAlnORx,
+    name = "PA ln(OR)",
+    text = ~text_pa,
+    hoverinfo = "text",
+    hovertemplate = "%{text}<extra></extra>",
+    line = list(color = "black", width = 3)
+  )
+
+# Male PDF
+fig <- fig %>%
+  add_lines(
+    data = sex_data,
+    x = ~X, y = ~pdf_sex0,
+    name = "Male",
+    legendgroup = "sex0",
+    text = ~text_pdf0,
+    hoverinfo = "text",
+    hovertemplate = "%{text}<extra></extra>",
+    line = list(color = "blue", dash = "dash")
+  )
+
+# Male line
+fig <- fig %>%
+  add_segments(
+    x = -1.5, xend = -1.5,
+    y = 0, yend = 1,
+    legendgroup = "sex0",
+    line = list(color = "blue", dash = "dot"),
+    showlegend = FALSE,
+    hoverinfo = "skip"
+  )
+
+# Male point
+fig <- fig %>%
+  add_markers(
+    data = truePA %>% filter(sex == 0),
+    x = ~X, y = ~PA,
+    name = "Male mean",
+    legendgroup = "sex0",
+    marker = list(color = "blue", size = 8),
+    hovertemplate = paste0(
+      "Sex: Male",
+      "<br>X: %{x:.3f}",
+      "<br>PA ln(OR): %{y:.3f}",
+      "<extra></extra>"
+    )
+  )
+
+# Female PDF
+fig <- fig %>%
+  add_lines(
+    data = sex_data,
+    x = ~X, y = ~pdf_sex1,
+    name = "Female",
+    legendgroup = "sex1",
+    text = ~text_pdf1,
+    hoverinfo = "text",
+    hovertemplate = "%{text}<extra></extra>",
+    line = list(color = "red", dash = "dash")
+  )
+
+# Female line
+fig <- fig %>%
+  add_segments(
+    x = 1.5, xend = 1.5,
+    y = 0, yend = 1,
+    legendgroup = "sex1",
+    line = list(color = "red", dash = "dot"),
+    showlegend = FALSE,
+    hoverinfo = "skip"
+  )
+
+# Female point
+fig <- fig %>%
+  add_markers(
+    data = truePA %>% filter(sex == 1),
+    x = ~X, y = ~PA,
+    name = "Female mean",
+    legendgroup = "sex1",
+    marker = list(color = "red", size = 8),
+    hovertemplate = paste0(
+      "Sex: Female",
+      "<br>X: %{x:.3f}",
+      "<br>PA ln(OR): %{y:.3f}",
+      "<extra></extra>"
+    )
+  )
+
+fig <- fig %>%
+  layout(
+    autosize = TRUE,
+    title = "Population Averaged log(Odds Ratio) Across X with Sex-Specific Distributions",
+    font = list(size = 16),
+    xaxis = list(title = "X (standardized value)", titlefont = list(size = 18)),
+    yaxis = list(title = "Population Averaged log(OR)", titlefont = list(size = 18)),
+    legend = list(x = 1.02, y = 1),
+    margin = list(l = 40, r = 10, t = 60, b = 40)
+  ) %>%
+  config(responsive = TRUE)
+
+htmltools::div(style = "height:100%;", fig)
+```
+
+
+
+#### Findings
+
+It can be seen that the PA ln(OR) changes based on the Sex subgroups despite not being included in the original probit model which can cause issues with samples that do not contain all subgroups due to limitations. These subgroups can be calculated using a correctly specified Kernel Density Estimation (KDE) probit model or a misspecified stratified GEE logistic model.
+
+---
+
+# PA Ln(OR) Data Description
+
+Column
+-------------------------------------
+
+<div style="overflow-y: auto; height: 100%; padding: 10px;">
+This dataset is generated from a simulation study (no external data source; fully synthetic). The sample includes 200 clusters with 4 repeated observations per subject, representing a study population of simulated individuals with binary outcomes and a continuous exposure variable. Data were generated using a subject-specific probit model with random intercepts to mimic correlated binary responses, with exposure distributions varying by subgroup (sex). The simulation framework approximates population-averaged effects across the exposure distribution and does not correspond to a real-world time period.
+</div>
+---
+
+# Probit KDE vs Logit GEE Sex Groups
+```{r, fill=TRUE, echo=FALSE}
+htmltools::div(
+  style = "
+    font-size: 22px;
+    font-weight: 600;
+    text-align: center;
+    padding: 12px 18px;
+    margin-bottom: 15px;
+    background: #f5f5f5;
+    border-radius: 8px;
+  ",
+  "What happens if you use the common approach of a stratified Generalized Estimating Equations (GEE) model using a logit link instead of a method that is correctly specified such as Kernel Density Estimation (KDE) with a normal kernel?"
+)
+```
+Column {data-width=35}
+-------------------------------------
+
+#### Model Explanation
+
+This comparison evaluates two approaches for estimating the population-averaged log odds ratio:
+
+1. Kernel Density Estimation (KDE) based estimator (proposed method)
+2. Stratified Generalized Estimating Equations (GEE) with a logit link (common approach)
+
+Simulation setup:
+
+- 200 clusters, 4 observations per cluster
+
+- 500 simulated datasets
+
+- Random intercept: N(0, 0.5)
+
+- Exposure distributions differ by sex:
+
+  - Sex = 0 ~ N(-1.5, 1)
+
+  - Sex = 1 ~ N(1.5, 1)
+
+KDE approach:
+
+- Estimates the density of X nonparametrically using kernel density estimation
+
+- Computes ln(OR)(x) across a grid
+
+- Averages using density-based weights
+
+GEE approach:
+
+- Uses a logit link (misspecified under probit data generation)
+
+- Requires stratification to obtain subgroup estimates
+
+Histograms show the distribution of estimated PA ln(OR) across simulations for each method and subgroup.
+
+Column {data-width=65}
+-------------------------------------
+#### Method Comparison
+
+```{r, fill=TRUE}
+all_estimates <- all_estimates %>%
+  mutate(
+    sex_label = factor(sex, levels = c(0,1), labels = c("Male","Female")),
+    est_round = round(estimate, 3)
+  )
+
+p_kde <- all_estimates %>% 
+  filter(method=="KDE") %>%
+  ggplot(aes(
+    x = estimate, 
+    fill = sex_label
+  )) +
+  geom_histogram(bins=30, alpha=.6, position="identity") +
+  coord_cartesian(xlim=c(0.5,1), ylim=c(0,110)) +
+  scale_fill_manual(
+    name = "Sex",
+    values = c("Male"="blue","Female"="red")
+  ) +
+  labs(x="Estimated PA ln(OR)", title="Probit KDE Sex Histograms")
+
+p_gee <- all_estimates %>% 
+  filter(method=="GEE") %>%
+  ggplot(aes(
+    x = estimate, 
+    fill = sex_label
+  )) +
+  geom_histogram(bins=30, alpha=.6, position="identity") +
+  coord_cartesian(xlim=c(0.5,1), ylim=c(0,110)) +
+  scale_fill_manual(
+    name = "Sex",
+    values = c("Male"="blue","Female"="red")
+  ) +
+  labs(x="Estimated PA ln(OR)", title="Logit GEE Sex Histograms")
+
+
+# --- Convert to FULLY responsive plotly ---
+kde_plot <- ggplotly(p_kde, tooltip = "x") %>%
+  layout(
+    autosize = TRUE,
+    margin = list(l=40, r=10, t=60, b=40)
+  ) %>%
+  config(responsive = TRUE)
+
+gee_plot <- ggplotly(p_gee, tooltip = "x") %>%
+  layout(
+    autosize = TRUE,
+    margin = list(l=40, r=10, t=60, b=40)
+  ) %>%
+  config(responsive = TRUE)
+
+
+# --- FIX HOVER (THIS IS THE ONLY IMPORTANT CHANGE) ---
+fix_hover <- function(p) {
+  p$x$data <- lapply(p$x$data, function(trace) {
+    sex_name <- trace$name
+
+    trace$hovertemplate <- paste0(
+      "Sex: ", sex_name, "<br>",
+      "Estimate: %{x:.3f}<br>",
+      "Count: %{y}<extra></extra>"
+    )
+
+    trace
+  })
+  p
+}
+
+kde_plot <- fix_hover(kde_plot)
+gee_plot <- fix_hover(gee_plot)
+
+
+# --- UI + Toggle ---
+tagList(
+  tags$head(
+    tags$style(HTML("
+      html, body, .dashboard-page, .section, .section.level1 {
+        height: 100%;
+      }
+
+      .plot-container {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .plot-area {
+        flex-grow: 1;
+        min-height: 0;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .js-plotly-plot, .plotly {
+        width: 100% !important;
+        height: 100% !important;
+      }
+
+      .toggle-btn {
+        align-self: flex-end;
+        margin-bottom: 5px;
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+    "))
+  ),
+
+  div(
+    class = "plot-container",
+
+    tags$button(
+      id = "toggle",
+      class = "toggle-btn",
+      "Switch to GEE"
+    ),
+
+    div(
+      class = "plot-area",
+      div(id = "kde_div", kde_plot),
+      div(id = "gee_div", class = "hidden", gee_plot)
+    )
+  ),
+
+  tags$script(HTML("
+    const btn = document.getElementById('toggle');
+    const kde = document.getElementById('kde_div');
+    const gee = document.getElementById('gee_div');
+
+    function resizePlot(container) {
+      const plot = container.querySelector('.plotly');
+      if (plot) {
+        Plotly.relayout(plot, { autosize: true });
+        Plotly.Plots.resize(plot);
+      }
+    }
+
+    btn.onclick = function() {
+      const showingKDE = !kde.classList.contains('hidden');
+
+      if (showingKDE) {
+        kde.classList.add('hidden');
+        gee.classList.remove('hidden');
+        btn.innerText = 'Switch to KDE';
+        setTimeout(() => resizePlot(gee), 200);
+      } else {
+        kde.classList.remove('hidden');
+        gee.classList.add('hidden');
+        btn.innerText = 'Switch to GEE';
+        setTimeout(() => resizePlot(kde), 200);
+      }
+    };
+
+    window.addEventListener('load', function() {
+      setTimeout(() => resizePlot(kde), 200);
+    });
+
+    window.addEventListener('resize', function() {
+      if (!kde.classList.contains('hidden')) resizePlot(kde);
+      if (!gee.classList.contains('hidden')) resizePlot(gee);
+    });
+  "))
+)
+```
+
+
+#### Findings
+
+- The KDE-based estimator produces more precise estimates (lower variability) than GEE.
+- KDE results:
+  - Sex 0 mean ≈ 0.801, SD ≈ 0.029
+  - Sex 1 mean ≈ 0.670, SD ≈ 0.021
+- GEE results:
+  - Sex 0 mean ≈ 0.791, SD ≈ 0.047
+  - Sex 1 mean ≈ 0.668, SD ≈ 0.031
+
+- KDE achieves tighter distributions and more stable subgroup estimates.
+- GEE requires stratification, which reduces effective sample size and increases variability.
+- Confidence interval coverage is slightly lower for KDE (~93%) than GEE (~95%), but this is offset by improved precision.
+- The key advantage of KDE is that it directly targets the population-averaged parameter by adapting to the observed distribution of X.
+
+---
+
+# Probit vs. Logit GEE Sex Groups Data Description
+
+<div style="overflow-y: auto; height: 100%; padding: 10px;">
+The data were produced via Monte Carlo simulation with 500 replicated datasets under controlled parameter settings. Each dataset includes clustered observations with subgroup-specific exposure distributions and random intercepts to reflect within-subject correlation. Estimation methods, including GEE, mixed models, and kernel density–weighted approaches, were applied and evaluated using bootstrap resampling at the cluster level. The study population is simulated rather than observed, and all data were generated programmatically over three 8 hour segments.
+</div>
